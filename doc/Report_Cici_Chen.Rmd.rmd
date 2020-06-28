@@ -1,0 +1,377 @@
+---
+title: "Reporting Analyst Evaluation"
+author: "Cici Chen"
+date: "10/24/2019"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<!-- You may need to install these packages if you do not have them in your R. -->
+```{r install.packages, echo=F, warning=F, message=F}
+if(!require("readxl")) install.packages("readxl")
+if(!require("ggplot2")) install.packages("ggplot2")
+if(!require("lubridate")) install.packages("lubridate")
+if(!require("plotrix")) install.packages("plotrix")
+if(!require("packcircles")) install.packages("packcircles")
+if(!require("webshot")) install.packages("webshot")
+if(!require("kableExtra")) install.packages("kableExtra")
+webshot::install_phantomjs()
+```
+
+```{r libraries, echo=F,message=F, warning=F}
+library(DT)
+library(readxl)
+library(datamodelr)
+library(readxl)
+library(ggplot2)
+library(lubridate)
+library(plotrix)
+library(plyr)
+library(knitr)
+library(kableExtra)
+library(scales)
+library(grid)
+library(dplyr)
+library(packcircles)
+```
+
+```{r functions, echo=F}
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+```
+
+## Part 1: Entity Relationship Diagram
+
+ERD could be shown as below:
+
+```{r connect,echo=F}
+sheetNum <- excel_sheets("Adventure Works Data.xlsx")
+
+# Read in 6 sheets
+Employee.HR<-read_excel("Adventure Works Data.xlsx",sheet=sheetNum[1])
+Business.Entity.Address<-read_excel("Adventure Works Data.xlsx",sheet=sheetNum[2])
+Sales.person<-read_excel("Adventure Works Data.xlsx",sheet=sheetNum[3])
+Contact<-read_excel("Adventure Works Data.xlsx",sheet=sheetNum[4])
+Pay.history<-read_excel("Adventure Works Data.xlsx",sheet=sheetNum[5])
+Address<-read_excel("Adventure Works Data.xlsx",sheet=sheetNum[6])
+```
+
+```{r ERD, echo=F}
+dm_f <- dm_from_data_frames(Employee.HR,Business.Entity.Address,Sales.person,Contact,Pay.history,Address)%>%
+        dm_add_references(
+           Pay.history$`Business Entity ID`==Employee.HR$`Business Entity ID`,
+           Sales.person$`Business Entity ID`==Employee.HR$`Business Entity ID`,
+           Business.Entity.Address$`Business Entity ID`==Address$`Address ID`,
+           Employee.HR$`Business Entity ID`==Contact$`BusinessEntityID (Person)`,
+           Business.Entity.Address$`Address ID`==Employee.HR$`Business Entity ID`)%>%
+  dm_set_key("Business.Entity.Address", c("Address ID","Business Entity ID"))%>%
+  dm_set_key("Pay.history", "Business Entity ID")%>%
+  dm_set_key("Sales.person", "Business Entity ID")
+
+graph <- dm_create_graph(dm_f, rankdir = "BT",col_attr = c("column", "type"))
+dm_render_graph(graph)
+```
+
+## Part 2: Connecting to Data
+Now connect the Adventure Works data file. As I also want to include those employees who are not sales persons, I use **Left Join** for different sheets.
+
+```{r merge, echo=F}
+# Merge the sheets we need
+a<-merge(Employee.HR,Sales.person,by="Business Entity ID",all.x =TRUE) # left join 
+b<-merge(a,Contact,by.x = "Business Entity ID",by.y="BusinessEntityID (Person)",all.x=T) # left join 
+c<-merge(b,Pay.history,by="Business Entity ID",all.x=T) # left join 
+```
+
+## Part 3: Data Tables (Cross Tabs)
+I created a list of the employees with their *Business Id, Last Name, First Name, Job Title, Rate, Bonus, Sales Quota and Sales Last Year*. Format this sheet to include the following:
+```{r create.a.list,echo=F}
+dat<-data.frame(c$`Business Entity ID`,c$`Last Name`,c$`First Name`,c$`Job Title`,c$Gender,
+                c$`Hire Date`,c$Rate,c$Bonus,c$`Sales Quota`,c$`Sales Last Year`,c$`Sales YTD`)
+colnames(dat)<-c("Business Id","Last Name","First Name","Job Title","Gender","Hire Date",
+                   "Rate", "Bonus","Sales Quota","Sales Last Year","Sales Year to Date")
+```
+
+##### 1. Sort by Salary Rate
+```{r sort.by.salary, echo=F}
+dat<-dat[order(dat$Rate,decreasing = T),]
+
+kable(head(dat,15), "latex", booktabs = T, row.names = F) %>% 
+  kable_styling(latex_options = "scale_down",font_size = 15)
+```
+
+##### 2. Total the Columns:
+```{r totals, echo=F,eval=F}
+Totals<-apply(dat[c("Rate" ,"Bonus","Sales Quota","Sales Last Year" )],2,sum, na.rm=T)
+t(as.data.frame(Totals))
+```
+
+||Rate |Bonus| Sales Quota |Sales Last Year|
+|-|-|-|-|-|
+|Totals| 5274.594| 48610   |  3650000   |  23685964|
+
+##### 3. What else can you do to make this table more readable? Please implement your ideas
+
+* Change Gender from **"F & M"** to **"Female & Male"**
+* **Round** the Rate
+* The last 4 columns *Bonus, Sales Quota, Sales Last Year* are actually **ONLY** for **Sales Department**, so we need to make a comment under the table for better interpretation
+
+Then we can have a more readable table:
+```{r fancy.table, echo=F}
+dat$Gender<-ifelse(dat$Gender=="F","Female","Male")
+dat$Gender<-as.factor(dat$Gender)
+dat$Rate<-round(dat$Rate,1)
+
+kable(head(dat,15), "latex", booktabs = T, row.names = F) %>% 
+  kable_styling(latex_options = c("striped", "scale_down"),font_size = 15)
+```
+
+**Comments**: 
+
+* *Bonus, Sales Quota, Sales Last Year* are only for *Sales Department*
+
+* **"NA"** stands for **"Unknown / Not Applicable / Missing Values"**
+
+##### 4. Questions: 
+
+* Q1. **Ken Sánchez**	has the higest salary rate in the firm and she is **Chief Executive Officer**.
+```{r higest.rate, echo=F, eval=F}
+dat[order(dat$Rate,decreasing = T),][1,c(1,2,3,4,7)]
+```
+
+* Q2. **Tsvi Reiter**	has the higest salary Bonus last year and it is **\$6,700**.
+```{r higest.bonus,echo=F, eval=F}
+dat[order(dat$Bonus, decreasing = T),][1,c(1,2,3,8)]
+```
+
+* Q3. **Ranjit Varkey Chudukatil**	has the higest sales last year and it is **\$2,396,540**.
+```{r higest.sales.last.year, echo=F, eval=F}
+dat[order(dat$`Sales Last Year`,decreasing = T),][1,c(1,2,3,10)]
+```
+
+* Q4. **Tete Mensa-Annan Tete** does not meet her quota.
+```{r under.quota, echo=F,eval=F}
+dat[which(dat$`Sales Quota`>dat$`Sales Last Year`),][,c(1,2,3)]
+```
+
+* Q5. 
+
+|Summary|Rate|
+|--|--|
+|Mean|18.18|
+|Median|14|
+|Mode|9.5|
+
+```{r summary.mean, echo=F}
+mean<-paste("Mean =",round(mean(dat$Rate),2))
+median<-paste("Median =",median(dat$Rate))
+#table(dat$Rate)
+mode<-paste("Mode =",names(table(dat$Rate))[which(table(dat$Rate)==max(table(dat$Rate)))])
+```
+
+##### 5: Q6. What other interesting insights can be derived?
+##### Insight 1: Gender vs. Average Rate ==> More Male while Female tends to earn more
+```{r Insight1.1,echo=F}
+gender.dim<-ddply(dat, "Gender", summarise, Mean=round(mean(Rate),2),Median=median(Rate))
+percentage<-100*round(table(dat$Gender)/(206+84),4)
+```
+
+```{r Insight1.2,fig.align='center',fig.width=7,fig.height=4, echo=F}
+# Pie
+data <- data.frame(
+  group=c("28.97% Female","71.03% Male"),
+  value=c(table(dat$Gender)[[1]],table(dat$Gender)[[2]])
+)
+
+data <- data %>% 
+  arrange(desc(group)) %>%
+  mutate(prop = value / sum(data$value) *100) %>%
+  mutate(ypos = cumsum(prop)- 0.5*prop )    # Compute the position of labels
+
+p1<-ggplot(data, aes(x="", y=prop, fill=group)) +
+  geom_bar(stat="identity", width=1, color="white") +labs(title="Gender vs. Average Rate") +
+  coord_polar("y", start=0) +
+  theme_void() + 
+  theme(legend.position="bottom",legend.title=element_blank(),plot.title = element_text(hjust = 0.8)) +
+  geom_text(aes(y = ypos-3, label = c("Average Rate=$17.76","Average Rate=$19.22")), color = "white", size=3) +
+  scale_fill_manual(values=c("hotpink1","steelblue2"))
+
+# Density
+cdat<-ddply(dat, "Gender", summarise, rating.mean=mean(Rate))
+p2<-ggplot(dat, aes(x=Rate, colour=Gender,fill=Gender)) +
+    geom_density(alpha=.3) +
+    geom_vline(data=cdat, aes(xintercept=rating.mean, colour=Gender),linetype="dashed", size=1) +
+    theme(legend.position="top",legend.title=element_blank()) +
+    labs(x="Rate",y="")+
+  scale_fill_manual(values=c("hotpink1", "steelblue2"))
+  
+multiplot(p1, p2, cols=2)
+```
+
+* The employees are composed of **28.97%** Females and **71.03%** Males
+* The average rate of Females(**\$19.22**) is larger than the average rate of Males(**\$17.76**)
+* Females seem to earn more than Males, while the largest rate(**\$125**) is from a Male
+
+##### Insight 2: Peak Period vs. Hire Date ==> Time of a year influences the hiring of the firm
+```{r insight2, fig.align='center',fig.width=7,fig.height=3,echo=F}
+yrs<-format(as.Date(dat$`Hire Date`), "%Y")
+yrs.freq<-data.frame(table(yrs))
+ms<-format(as.Date(dat$`Hire Date`), "%m")
+ms.freq<-data.frame(table(ms))
+
+yrs.freq$yrs<-as.numeric(as.character(yrs.freq$yrs))
+ms.freq$ms<-as.numeric(as.character(ms.freq$ms))
+
+p3<-ggplot(yrs.freq, aes(x=yrs, y=Freq)) +
+  geom_line( color="#69b3a2", size=1, alpha=0.9, linetype=1) +
+  labs(title="Peak Period of Hirng season",x="Years",y="Count of hiring numbers")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+p4<-ggplot(ms.freq, aes(x=ms, y=Freq)) +
+  geom_line( color="#69b3a2", size=1, alpha=0.9, linetype=1) +
+  labs(title="Seasonal Change of Peak Period",x="Months",y="")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+multiplot(p3, p4, cols=2)
+```
+
+* From the left graph, the firm hired a lot of people (around **200**) in **Year=2003** , and there is a peak for the hiring process based on different years
+* The Right graph displays the seasonal change of the hiring process. There was a peak(**March**) of the hiring and then it dropped dramatically, and the other small peak occurred right after around **June/July**, which means that different times of a year will influence in the hiring situations
+
+## Part 4: Bar Chart and Targets
+
+```{r barchart.and.targets, echo=F, fig.align='center',fig.height=4.2}
+sales<-dat[which(!is.na(dat$`Sales Year to Date`)),]
+sales<-sales[which(sales$`Job Title`=="Sales Representative"),]
+# Create the data for the chart
+sales$H <- sales$`Sales Year to Date`
+sales$M <- factor(sales$`First Name`)
+
+sales$flag<-factor(ifelse(sales$`Sales Year to Date`<1600000,"Below New Sales Quota","Above New Sales Quota"))
+
+ggplot(sales,aes(x=M,y=H, fill=flag)) + 
+  geom_bar(stat="identity",width = 0.7) +
+  labs(title="Sales Representatives & their Sales Year to Date", x="",y="Sales YTD") +
+  theme(plot.title = element_text(hjust = 0.5), axis.text.x = element_text(size=8,angle = 30),
+        legend.position="top",legend.title=element_blank()) +
+  scale_fill_manual(values=c("#00CCCC", "#FF6666")) +
+  geom_hline(yintercept = 1600000,col="red",linetype=2) +
+  annotate(geom="text", label="New Quota Line", x=1.6, y=1800000, vjust=-0.5, col="red",size=3.4) +
+  annotate(geom="text", label="=1600K", x=1.6, y=1600000, vjust=-0.5, col="red",size=3.4)
+```
+
+The above shows the bar chart of the Sales Representatives and their SALES YEAR TO DATE as well as the New Sales Quota for them.
+
+## Part 5: Points
+The chart shows Salary Rate over time (Day) based on Hire Date and show the points by Gender (Male
+or Female) color the Point Pink for Girls and Blue for Boys. 
+
+```{r Points,echo=F, fig.align='center',fig.height=3.5}
+time<-dat$`Hire Date`
+time<-ymd(time)
+dat$timediff<-as.numeric(difftime("2019-10-24",time,units=c("days")))
+
+ggplot(aes(x = timediff, y=Rate, col=Gender),data=dat) + 
+  geom_point() +
+  labs(title="Salary Rate over time(Day) based on Hire Date", y="Rate", x="Time(Day)") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position="right") +
+  scale_color_manual(labels = c("Girls", "Boys"), values = c("hotpink1", "steelblue2")) +
+  annotate(geom="text", label="High Rate", x=6000, y=115, col="steelblue2",size=6) +
+  annotate(geom="text", label="Low Rate", x=6900, y=25, col="steelblue2",size=6)
+```
+
+* Generally speaking, the longer an employee was hired, the higher the rate will be
+* However, there are some **Low Rate** for the employees who were hired for a long time
+
+## Part 6 Other Insights
+
+In order to investigate the composition of the firm, I mutually divided the employees into 5 departments:**Chief, Research, Finance, Human Resources and Product**.
+
+```{r Others1, echo=F}
+job.title <- as.character(unique(dat$`Job Title`))
+class <- data.frame(`Job Title` = job.title,
+                    "Class" = rep(NA, length(job.title)))
+class[c(1:5),2] <- "Chief"
+class[c(6:7,11,13,17,19,22,27), 2] <- "Research"
+class[c(8:10,16,21,23,28:35,38,39,41,45,47,50:52,54,56:60,62,64,65,67), 2] <- "Product"
+class[c(14,15,20,24,25,36,37,40,44,46,49,53,61,63,66), 2] <- "Human\nResources"
+class[c(12,18,26,42,43,48,55), 2] <- "Finance"
+colnames(class) <- c("Job Title", "Class")
+dat.c <- merge(dat, class, by="Job Title")
+```
+
+```{r Others2, echo=F, fig.align='center',fig.height=3,fig.width=4.5}
+temp<-data.frame(data.frame(table(dat.c$Class)))
+packing <- circleProgressiveLayout(temp$Freq, sizetype='area')
+data <- cbind(temp, packing)
+ 
+ggplot() + 
+  geom_polygon(data = circleLayoutVertices(packing, npoints=50), 
+               aes(x, y, group = id, fill=as.factor(id)), colour = "black", alpha = 0.6) +
+  geom_text(data = data, aes(x, y, size=100000, label = temp$Var1)) +
+  scale_size_continuous(range = c(1,4)) +
+  theme_void() + 
+  theme(legend.position="none",plot.title = element_text(hjust = 0.5)) +
+  coord_equal()
+```
+
+
+The above graph shows that **Product** Department has the largest number of employees, while the **Chief** Office has the smallest number of employees.
+
+```{r Others3, echo=F, fig.align='center',fig.height=4.4,fig.width=7}
+temp2<-data.frame(dat.c$Class,dat.c$Gender,dat.c$Rate)
+temp3<-ddply(temp2, .(dat.c.Class,dat.c$Gender), summarize, 
+             mean = round(mean(dat.c.Rate), 2))
+colnames(temp3)<-c("Department","Gender","Average Rate")
+ggplot(data=temp3, aes(x=Department, y=`Average Rate`, fill=temp3$Gender)) +
+    geom_bar(stat="identity", position=position_dodge(), colour="black") +
+    scale_fill_manual(values=c("hotpink1", "steelblue2"),name="Gender") +
+    theme(plot.title = element_text(hjust = 0.5)) + 
+    labs(x="Department Name",y="Average Rate",title="Average Rate for Female/Male in different departments")
+```
+
+This graph shows the average rate for Female and Male from different departments. It shows that:
+
+* The **Chief** Office and **Research** department earn more than the other departments based on the average rate
+
+* **Product** department earns the least in average rate while having the largest number of employees in the firm
+
+* This graph also verified the result I showed before: Women earn more generally and men earn more when he is in a high-level position
