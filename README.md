@@ -6,4 +6,4 @@
 * In order to better display the dataset, I created an Entity Relationship Diagram with 'datamodelr' package in `R`, merged *100,000+* data from *10+* tables, analyzed the data, and then generated the R-markdown report as well as the `Tableau` Dashboard for better interpretation and presentation.
 
 
-[PDF](https://docs.google.com/presentation/d/1F6G-Letqf0T90XLgDW9eadNMgA5lR2meZ6erilowV_g/edit?usp=sharing)
+[Slides](https://docs.google.com/presentation/d/1F6G-Letqf0T90XLgDW9eadNMgA5lR2meZ6erilowV_g/edit?usp=sharing)
