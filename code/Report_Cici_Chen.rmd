@@ -84,15 +84,15 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 ERD could be shown as below:
 
 ```{r connect,echo=F}
-sheetNum <- excel_sheets("Adventure Works Data.xlsx")
+sheetNum <- excel_sheets("Adventure_Works_Data.xlsx")
 
 # Read in 6 sheets
-Employee.HR<-read_excel("Adventure Works Data.xlsx",sheet=sheetNum[1])
-Business.Entity.Address<-read_excel("Adventure Works Data.xlsx",sheet=sheetNum[2])
-Sales.person<-read_excel("Adventure Works Data.xlsx",sheet=sheetNum[3])
-Contact<-read_excel("Adventure Works Data.xlsx",sheet=sheetNum[4])
-Pay.history<-read_excel("Adventure Works Data.xlsx",sheet=sheetNum[5])
-Address<-read_excel("Adventure Works Data.xlsx",sheet=sheetNum[6])
+Employee.HR<-read_excel("Adventure_Works_Data.xlsx",sheet=sheetNum[1])
+Business.Entity.Address<-read_excel("Adventure_Works_Data.xlsx",sheet=sheetNum[2])
+Sales.person<-read_excel("Adventure_Works_Data.xlsx",sheet=sheetNum[3])
+Contact<-read_excel("Adventure_Works_Data.xlsx",sheet=sheetNum[4])
+Pay.history<-read_excel("Adventure_Works_Data.xlsx",sheet=sheetNum[5])
+Address<-read_excel("Adventure_Works_Data.xlsx",sheet=sheetNum[6])
 ```
 
 ```{r ERD, echo=F}
