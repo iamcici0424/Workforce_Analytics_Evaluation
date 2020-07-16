@@ -1,10 +1,23 @@
 ## AdventureWorks Workforce Analytics Evaluation
 
-**Term**: 
+**Term** : October 2019
+
+**Goal**: 
+
+The main goal of this project is to do some simple data visualization with AdventureWorks Dataset.
+
+Following [suggestions](http://nicercode.github.io/blog/2013-04-05-projects/) by [RICH FITZJOHN](http://nicercode.github.io/about/#Team) (@richfitz). This folder is orgarnized as follows.
+
+```
+proj/
+├── data/ data used in this project
+├── code/ codes run
+└── doc/ instruction, pdf reports, and presentation slides if present
+```
 
 ### Introduction
 
-* This project focused on the workforces &amp; analytics about the sample dataset: AdventureWorks. 
+* This project focused on the workforces and analytics about the sample dataset: AdventureWorks. 
 
 * The HR Manager wants to better understand how they are doing, and I was asked to answer HR's questions and develop some analytics/insights using the data file provided. 
 
@@ -18,8 +31,9 @@
 ### Code
 
 * [R code](code/Report_Cici_Chen.rmd)
-* [tableau workbook](code/tableau_Cici_Chen.twb)
+* [Data Visualization: tableau workbook](code/tableau_Cici_Chen.twb)
 
 ### Reports
+
 * [Google Slides](https://docs.google.com/presentation/d/1F6G-Letqf0T90XLgDW9eadNMgA5lR2meZ6erilowV_g/edit?usp=sharing)
 * [PDF Version](doc/Report_Cici_Chen.pdf)
